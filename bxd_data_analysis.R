@@ -23,15 +23,6 @@ bxd_header <- bxd_header[,3:ncol(bxd_header)]
 bxd_data <- read.table(paste0(DATA_DIR,"/BXD/raw_data/aData_S1_AllOmicsandPhenotypeData.csv"), row.names = 1, header = T, na.strings = "", sep = ",", skip = 8, stringsAsFactors = FALSE)
 bxd_data <- bxd_data[1:nrow(bxd_data),3:ncol(bxd_data)]
 
-# Load Lifespan Information Data (treat empty cells as NA values)
-survive_raw <- read.xlsx(paste0(DATA_DIR,"/BXD/raw_data/aTablesS1_AgingDB.xlsx"), na.strings="")
-survive <- subset(survive_raw, survive_raw$CauseOfDeath=="Natural" | survive_raw$CauseOfDeath=="Euthanized")
-# Subset data to include only strains with at least 2 samples
-survive <- survive %>%
-  group_by(StrainNameCurrent) %>%
-  filter(n() >= 2) %>%
-  ungroup()  # Remove the grouping structure
-
 # Load marker lists 
 mtor_positive_translation <- readRDS(paste0(DATA_DIR,"/marker_lists_mouse/mtor_markers_positive_mouse_without_Jade2.rds"))
 mtor_negative_translation <- readRDS(paste0(DATA_DIR,"/marker_lists_mouse/mtor_markers_negative_mouse.rds"))
@@ -95,7 +86,7 @@ rna_data_filtered <- rna_data_filtered[, colSums(!is.na(rna_data_filtered)) > 0]
 rownames(rna_data_filtered)[rowSums(is.na(rna_data_filtered)) == ncol(rna_data_filtered)]
 
 # Save the filtered RNA data
-saveRDS(rna_data_filtered, paste0("bxd_rna_data_filtered.rds"))
+# saveRDS(rna_data_filtered, paste0("bxd_rna_data_filtered.rds"))
 
 
 ## Extract relevant metadata ##
@@ -115,7 +106,7 @@ metadata$SacDate <- as.factor(metadata$SacDate)
 #metadata$OmicsEarTag <- as.factor(metadata$OmicsEarTag)
 
 # Save the metadata
-saveRDS(metadata, paste0("bxd_metadata.rds"))
+# saveRDS(metadata, paste0("bxd_metadata.rds"))
 
 
 
@@ -190,7 +181,7 @@ rna_data_filtered_sub <- rbind(rna_data_filtered_sub, missing_erk_negative_data)
 dim(rna_data_filtered_sub)
 
 # Save the data that only contains the genes that are not missing in more than 90 % of the samples
-saveRDS(rna_data_filtered_sub, paste0("bxd_rna_data_filtered_more_90_per_samples.rds"))
+# saveRDS(rna_data_filtered_sub, paste0("bxd_rna_data_filtered_more_90_per_samples.rds"))
 
 
 
@@ -288,253 +279,3 @@ ggplot(df_non_zero_genes_with_metadata, aes(x = NumNonZeroGenes, y = SacDate)) +
   scale_y_date(date_labels = "%b-%Y", date_breaks = "1 month") +  # Full date format (Day-Month-Year)
   theme_minimal() +
   theme(axis.text.y = element_text(hjust = 1))  # Rotate dates for readability
-
-
-              
-
-
-
-#### Broad Sense Heritability of Lifespan ####
-
-# List of strains available in the expression data
-strains_with_expression <- unique(bxd_header[3,])
-
-# Filter the lifespan data to include only those strains present in the expression dataset
-survive_filtered <- survive[survive$StrainNameCurrent %in% strains_with_expression, ]
-survive_filtered <- survive # uncomment this if you want to use all strains
-
-# Check how many strains and samples are included after filtering
-cat("Number of strains with both lifespan and expression data:", length(unique(survive_filtered$StrainNameCurrent)), "\n")
-cat("Number of samples:", nrow(survive_filtered), "\n")
-
-
-
-
-## Check assumptions for ANOVA (with https://www.statology.org/anova-assumptions/) ##
-
-# check equal variance
-
-# Plot Lifespan Distribution by Strain
-ggplot(survive_filtered, aes(x = StrainNameCurrent, y = AgeAtDeath)) +
-  geom_boxplot() +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  labs(x = "Strain", y = "Lifespan (days)", title = "Lifespan Distribution by Strain")
-
-bartlett.test(AgeAtDeath ~ StrainNameCurrent, data=survive_filtered)
-# suggests that the samples do not all have equal variances
-
-# Perform one-way ANOVA with Strain as a factor
-anova_model <- aov(AgeAtDeath ~ StrainNameCurrent, data = survive_filtered)
-
-# View ANOVA summary
-summary(anova_model)
-
-# Check normality
-hist(survive_filtered$AgeAtDeath)
-#create Q-Q plot to compare this dataset to a theoretical normal distribution
-qqnorm(anova_model$residuals)
-#add straight diagonal line to plot
-qqline(anova_model$residuals) # the dataset likely follows a normal distribution
-#Conduct Shapiro-Wilk Test for normality
-shapiro.test(survive_filtered$AgeAtDeath)
-# Less than the alpha level of 0.05. This suggests that the samples do not come a normal distribution.
-
-
-# For log scale #
-
-# check equal variance
-
-# Log scale age at death
-survive_filtered$LogAgeAtDeath <- log(survive_filtered$AgeAtDeath +1)
-
-# Plot Lifespan Distribution by Strain (log scale)
-ggplot(survive_filtered, aes(x = StrainNameCurrent, y = LogAgeAtDeath)) +
-  geom_boxplot() +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  labs(x = "Strain", y = "Log(Lifespan + 1)", title = "Lifespan Distribution by Strain (Log Scale)")
-
-bartlett.test(LogAgeAtDeath ~ StrainNameCurrent, data=survive_filtered)
-# suggests that the samples do not all have equal variances
-
-# Perform one-way ANOVA with Strain as a factor
-anova_model <- aov(LogAgeAtDeath ~ StrainNameCurrent, data = survive_filtered)
-
-# View ANOVA summary
-summary(anova_model)
-
-# Check normality
-hist(survive_filtered$LogAgeAtDeath)
-#create Q-Q plot to compare this dataset to a theoretical normal distribution
-qqnorm(anova_model$residuals)
-#add straight diagonal line to plot
-qqline(anova_model$residuals) # the dataset is not likely to follow a normal distribution
-#Conduct Shapiro-Wilk Test for normality
-shapiro.test(survive_filtered$LogAgeAtDeath)
-# Less than the alpha level of 0.05. This suggests that the samples do not come a normal distribution.
-
-
-
-
-## Using mixed-effects model like in  https://doi.org/10.1093/sleep/zsz278 ##
-### and Jan ###
-
-library(lme4)
-
-## Without including Diet as an effect ##
-
-# Scale the response variable
-survive_filtered$Scaled_age = scale(survive_filtered$AgeAtDeath) # scaled or not does not change the result
-
-# Fit a mixed-effects model with strain as a random effect
-model_lmm <- lmer(Scaled_age ~ (1|StrainNameCurrent), data = survive_filtered)
-
-# View the variance components
-summary(model_lmm)
-
-# Extract the variance components (genetic and residual variance)
-var_components <- as.data.frame(VarCorr(model_lmm))
-
-# Calculate broad-sense heritability
-genetic_variance <- var_components$vcov[1]  # Genetic variance
-residual_variance <- var_components$vcov[2]  # Residual variance
-H2 <- genetic_variance / (genetic_variance + residual_variance)
-
-print(paste("Broad-sense heritability (H²):", H2))
-
-
-## Including Diet as an effect ##
-
-# Fit a mixed-effects model with strain as random effect and diet as fixed effect
-model_lmm <- lmer(Scaled_age ~ DietCode + (1|StrainNameCurrent), data = survive_filtered)
-
-## For the different Diets ##
-
-# For the CD Diet
-model_lmm <- lmer(Scaled_age ~ (1|StrainNameCurrent), data = survive_filtered[survive_filtered$DietCode == "CD",])
-
-# For the HD Diet
-model_lmm <- lmer(Scaled_age ~ (1|StrainNameCurrent), data = survive_filtered[survive_filtered$DietCode == "HF",])
-
-
-
-# ## Using median ##
-# 
-# # Calculate median lifespan for each strain
-# median_lifespan_per_strain <- survive_filtered %>%
-#   group_by(StrainNameCurrent) %>%
-#   summarise(median_lifespan = median(AgeAtDeath, na.rm = TRUE))
-# 
-# # Calculate the genetic variance (variance of the median lifespans across strains)
-# genetic_variance <- var(median_lifespan_per_strain$median_lifespan, na.rm = TRUE)
-# 
-# # Calculate the total phenotypic variance (variance of lifespan for all individuals)
-# phenotypic_variance <- var(survive_filtered$AgeAtDeath, na.rm = TRUE)
-# 
-# # Broad-sense heritability (H²)
-# H2 <- genetic_variance / phenotypic_variance
-# 
-# # Print the broad-sense heritability
-# print(paste("Broad-sense heritability (H²):", round(H2, 4)))
-# 
-# 
-# ## Using Anova ##
-# 
-# # Fit a linear model (lifespan ~ strain)
-# model_lm <- lm(AgeAtDeath ~ StrainNameCurrent, data = survive_filtered)
-# 
-# # Perform ANOVA to partition the variance
-# anova_results <- anova(model_lm)
-# 
-# # Extract variance components from the ANOVA table
-# # The "StrainNameCurrent" row corresponds to the between-strain variance (genetic variance)
-# genetic_variance <- anova_results["StrainNameCurrent", "Mean Sq"]
-# 
-# # The "Residuals" row corresponds to the residual variance (environmental variance)
-# residual_variance <- anova_results["Residuals", "Mean Sq"]
-# 
-# # Total phenotypic variance is the sum of the genetic and residual variances
-# phenotypic_variance <- genetic_variance + residual_variance
-# 
-# # Calculate broad-sense heritability (H²)
-# H2 <- genetic_variance / phenotypic_variance
-# 
-# # Print broad-sense heritability
-# print(paste("Broad-sense heritability (H²):", round(H2, 4)))
-# 
-# 
-
-
-# ## Using One way Anova like in Quantitive genetic approach for assesing invasiveness ##
-# 
-# # https://link.springer.com/article/10.1007/s10530-007-9191-0
-# # The broad-sense heritability was calculated for development time and adult 
-# # weight from the means squares of one way ANOVAs following formula in Roff (1997, page 41). 
-# 
-# # Perform one-way ANOVA with Strain as a factor
-# anova_model <- aov(LogAgeAtDeath ~ StrainNameCurrent, data = survive_filtered)
-# 
-# # View ANOVA summary
-# summary(anova_model)
-# 
-# # Check ANOVA assumptions (with https://www.statology.org/anova-assumptions/)#
-# 
-# # Check normality
-# hist(survive_filtered$LogAgeAtDeath)
-# #create Q-Q plot to compare this dataset to a theoretical normal distribution 
-# qqnorm(anova_model$residuals)
-# #add straight diagonal line to plot
-# qqline(anova_model$residuals) # the dataset likely follows a normal distribution
-# #Conduct Shapiro-Wilk Test for normality 
-# shapiro.test(survive_filtered$AgeAtDeath)
-# # Less than the alpha level of 0.05. This suggests that the samples do not come a normal distribution.
-# 
-# # check equal variance
-# boxplot(AgeAtDeath ~ StrainNameCurrent, data = survive_filtered)
-# bartlett.test(AgeAtDeath ~ StrainNameCurrent, data=survive_filtered)
-# # suggests that the samples do not all have equal variances
-# 
-# plot(anova_model)
-# 
-# 
-# # Extract the Mean Squares
-# ms_between <- summary(anova_model)[[1]]["StrainNameCurrent", "Mean Sq"]  # MSB (Mean Square Between Strains)
-# ms_within <- summary(anova_model)[[1]]["Residuals", "Mean Sq"]  # MSW (Mean Square Within Strains)
-# 
-# # Calculate broad-sense heritability (H²)
-# H2 <- (ms_between - ms_within) / ms_between
-# 
-# print(paste("Broad-sense heritability (H²):", H2))
-
-
-
-
-
-
-
-
-### THIS CODE SETS ANIMALS ALIVE OR DEAD FOR THE GRAPHING AND LIFESPAN CALCULATIONS
-# lifestatus = survive$AgeIfStillAlive # tells if animal is dead (1) or alive (0)
-# i=1
-# for(i in 1:length(lifestatus)) {
-#   if(lifestatus[i]==0)  {
-#     lifestatus[i]=1 		# sets animal as dead if its "AgeIfStillAlive" is zero
-#   }
-#   else {lifestatus[i]=0}		# sets animal as alive if it has an AgeIfStillAlive of nonzero
-# }
-# 
-# time=survive$AgeIfStillAlive2
-# time2=survive$AgeAtDeath
-# event=lifestatus
-# strains=survive$StrainNameCurrent
-# xy=survfit(Surv(time, time2, event)~strains)
-# 
-# dev.new(width=8, height=7)
-# plot(xy, lwd=3, xlab="Days", ylab="Ratio Alive", main="BXD Aging Colony", bty="L", col=colors()[1:50], xlim=c(0,1300), xaxp=c(0, 1300,2), ylim=c(0,1), yaxp=c(0,1,2), las=1)
-# #legend("topright", lty=1, lwd=3, bty="n", col=c("red","blue","green","purple"), c("BXD13", "BXD91", "BXD9", "BXD73")) # Drawn in Illustrator
-# print(survfit(Surv(time, time2, event)~strains), print.rmean=T)
-# survdiff(Surv(time2, event)~strains)
-
-
-

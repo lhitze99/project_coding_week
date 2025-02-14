@@ -96,7 +96,7 @@ rna_data_filtered <- rna_data_filtered[,metadata$Sex == "F"]
 metadata <- metadata[metadata$Sex == "F",]
 
 # Save the data with only the female samples
-saveRDS(rna_data_filtered, paste0("processed_data/bxd_rna_data_filtered_female.rds"))
+# saveRDS(rna_data_filtered, paste0("processed_data/bxd_rna_data_filtered_female.rds"))
 
 
 
@@ -163,7 +163,7 @@ colnames(rna_data_filtered_corrected_age) <- colnames(rna_data_filtered)
 #colnames(rna_data_filtered_corrected_age_diet_plus_interaction) <- colnames(rna_data_filtered)
 
 # Save the corrected data
-saveRDS(rna_data_filtered_corrected_age, paste0("corrected_data/bxd_rna_data_filtered_female_corrected_age.rds"))
+#saveRDS(rna_data_filtered_corrected_age, paste0("corrected_data/bxd_rna_data_filtered_female_corrected_age.rds"))
 #saveRDS(rna_data_filtered_corrected_age_diet, paste0("corrected_data/bxd_rna_data_filtered_female_corrected_age_diet.rds"))
 #saveRDS(rna_data_filtered_corrected_age_diet_plus_interaction, paste0("corrected_data/bxd_rna_data_filtered_female_corrected_age_diet_plus_interaction.rds"))
 
