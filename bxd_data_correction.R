@@ -22,10 +22,6 @@ metadata <- metadata[,-1]
 # Only keep the samples that are present in the RNA-seq data
 metadata <- metadata[colnames(rna_data_filtered),]
 
-
-
-#### Inspect metadata ####
-
 # Check the metadata
 head(metadata)
 
@@ -37,61 +33,11 @@ metadata$Order <- as.numeric(metadata$Order)
 metadata$Age <- as.numeric(metadata$Age)           
 metadata$SacDate <- as.Date(metadata$SacDate, format = "%d.%m.%y")
 
-# Plot the distribution of Age
-hist(metadata$Age, breaks = 30, main = "Distribution of age", xlab = "Age")
-
-# Plot the distribution of Diet
-table(metadata$Diet)
-barplot(table(metadata$Diet), main = "Distribution of diet", xlab = "Diet")
-
-# Plot the distribution of Sex
-table(metadata$Sex)
-barplot(table(metadata$Sex), main ="Distribution of Sex", xlab ="Sex")
-
-# Plot the distributioin of Strain
-table(metadata$Strain)
-barplot(table(metadata$Strain), main = "Distribution of Strain", xlab = "Strain", las = 2)
-
-# Plot the distribution of SacDate
-table(metadata$SacDate)
-barplot(table(metadata$SacDate), main = "Distribution of SacDate", xlab = "SacDate", las = 2)
-
-# Plot Diet by Age
-boxplot(metadata$Age ~ metadata$Diet, main = "Age by Diet", xlab = "Diet", ylab = "Age")
-#barplot(table(metadata$Diet, metadata$Age), main = "Age by Diet", xlab = "Diet", ylab = "Age", las = 2)
-
-# Plot Sex by Age
-boxplot(metadata$Age ~ metadata$Sex, main = "Age by Sex", xlab = "Sex", ylab = "Age (Days)")
-
-# Plot Strain by Age
-boxplot(metadata$Age ~ metadata$Strain, main = "Age by Strain", xlab = "Strain", ylab = "Age", las = 2)
-
-# Plot SacDate by Age
-boxplot(metadata$Age ~ metadata$SacDate, main = "Age by SacDate", xlab = "SacDate", ylab = "Age", las = 2)
-
-# Plot Diet by Sex
-table(metadata$Diet, metadata$Sex)
-barplot(table(metadata$Diet, metadata$Sex), main = "Diet by Sex", xlab ="Sex", beside = TRUE, legend.text = TRUE, las = 1)
-
-# Plot Diet by Strain
-table(metadata$Diet, metadata$Strain)
-barplot(table(metadata$Diet, metadata$Strain), main = "Diet by Strain", xlab = "Diet", beside = TRUE, las = 2)
-
-# Plot Diet by SacDate
-table(metadata$Diet, metadata$SacDate)
-barplot(table(metadata$Diet, metadata$SacDate), main = "Diet by SacDate", xlab = "Diet", beside = TRUE, las = 2)
-
-# Plot Sex by Strain
-table(metadata$Sex, metadata$Strain)
-barplot(table(metadata$Sex, metadata$Strain), main = "Sex by Strain", xlab = "Sex", beside = TRUE, las = 2)
-
-# Get number of male samples
-nrow(metadata[metadata$Sex == "M",])
-
 
 #### Remove the male samples ####
+# As there is only small number of male samples in total and they are noticeably older than the females
 
-# Remove the male samples from rna_data_filtered and metadata
+# Remove the male samples from rna_data_filtered and metadata 
 rna_data_filtered <- rna_data_filtered[,metadata$Sex == "F"]
 metadata <- metadata[metadata$Sex == "F",]
 
@@ -102,16 +48,9 @@ metadata <- metadata[metadata$Sex == "F",]
 
 #### Data Correction ####
 
-# # Function to fit linear model and return residuals for a single gene
-# get_residuals <- function(data, mm){
-#   out <- fastLm(mm, data, method=3)$residuals
-#   gc()
-#   return(out) 
-# }
-
 source("/cellfile/cellnet/erkTorQtl/Scripts_Lara/get_residuals.R")
 
-## Correct for Age and Diet ##
+## Correct for Age (and Diet) ##
 
 # Check for na values 
 any(is.na(metadata$Sex))
