@@ -38,15 +38,6 @@ mtor_negative_translation <- readRDS(paste0(DATA_DIR,"/marker_lists_mouse/mtor_m
 erk_positive_translation <- readRDS(paste0(DATA_DIR,"/marker_lists_mouse/erk_markers_positive_mouse_without_Txnrd1.rds"))
 erk_negative_translation <- readRDS(paste0(DATA_DIR,"/marker_lists_mouse/erk_markers_negative_mouse_without_EIF4EBP1.rds"))
 
-# Load Lifespan Information Data (treat empty cells as NA values)
-survive_raw <- read.xlsx(paste0(DATA_DIR,"/BXD/raw_data/aTablesS1_AgingDB.xlsx", na.strings=""))
-survive <- subset(survive_raw, survive_raw$CauseOfDeath=="Natural" | survive_raw$CauseOfDeath=="Euthanized") # & survive_raw$Sex=="F"
-# Subset data to include only strains with at least 2 samples
-survive <- survive %>%
-  group_by(StrainNameCurrent) %>%
-  filter(n() >= 2) %>%
-  ungroup()  # Remove the grouping structure
-
 
 #### Score calculation ####
 
@@ -209,66 +200,6 @@ ggplot(mtor_score_df_with_metadata_filtered, aes(x = reorder(Strain, -mtor_score
 #ggsave("score_data/Plots/mtor_score_by_strain_uncorrected_data.png", width = 8, height = 6, dpi = 100)
 
 
-### Score plots across strains for each diet separately - only necessary for age corrected data (for QTL) ####
-
-# Filter strains that have more than 3 samples and that are on CD diet
-mtor_score_df_with_metadata_filtered_cd <- mtor_score_df_with_metadata %>%
-  group_by(Strain) %>%
-  filter(n() > 3 & Diet == "CD") %>%
-  ungroup()  # Ungroup to avoid issues with ggplot
-
-# Convert Strain to character to avoid issues with colors
-mtor_score_df_with_metadata_filtered_cd$Strain <- as.character(mtor_score_df_with_metadata_filtered_cd$Strain)
-
-# Color all strains grey and the parents in different colors
-mtor_score_df_with_metadata_filtered_cd <- mtor_score_df_with_metadata_filtered_cd %>%
-  mutate(Color = ifelse(Strain %in% c("C57BL6J", "DBA2J"), Strain, "Other"))
-
-# distribution of scores across different strains ordered based on median Score for CD diet
-ggplot(mtor_score_df_with_metadata_filtered_cd, aes(x = reorder(Strain, -mtor_score_matrix, FUN = median), y = mtor_score_matrix, fill = Color)) + 
-  geom_boxplot(alpha = 0.6) + 
-  geom_jitter(width = 0.2, size = 1.5, color = "darkgreen", alpha = 0.5) +
-  theme_minimal() + 
-  ylim(-0.35, 0.35) +
-  labs(title = "CD", x = "Strain", y = "mTOR Score") + 
-  scale_fill_manual(values = c("C57BL6J" = "red", "DBA2J" = "blue", "Other" = "grey")) + 
-  theme(
-    axis.text.x = element_text(angle = 90, hjust = 1),
-    legend.position = "none",
-    plot.title = element_text(hjust = 0.5)
-  )
-#ggsave("score_data/Plots/mtor_score_by_strain_cd_age_corrected_data.png", width = 8, height = 6, dpi = 100)
-
-# Filter strains that have more than 3 samples and that are on HF diet
-mtor_score_df_with_metadata_filtered_hf <- mtor_score_df_with_metadata %>%
-  group_by(Strain) %>%
-  filter(n() > 3 & Diet == "HF") %>%
-  ungroup()  # Ungroup to avoid issues with ggplot
-
-# Convert Strain to character to avoid issues with colors
-mtor_score_df_with_metadata_filtered_hf$Strain <- as.character(mtor_score_df_with_metadata_filtered_hf$Strain)
-
-# Color all strains grey and the parents in different colors
-mtor_score_df_with_metadata_filtered_hf <- mtor_score_df_with_metadata_filtered_hf %>%
-  mutate(Color = ifelse(Strain %in% c("C57BL6J", "DBA2J"), Strain, "Other"))
-
-# distribution of scores across different strains ordered based on median Score for HF diet
-ggplot(mtor_score_df_with_metadata_filtered_hf, aes(x = reorder(Strain, -mtor_score_matrix, FUN = median), y = mtor_score_matrix, fill = Color)) + 
-  geom_boxplot(alpha = 0.6) + 
-  geom_jitter(width = 0.2, size = 1.5, color = "darkgreen", alpha = 0.5) +
-  theme_minimal() + 
-  ylim(-0.35, 0.35) +
-  labs(title = "HF", x = "Strain", y = "mTOR Score") + 
-  scale_fill_manual(values = c("C57BL6J" = "red", "DBA2J" = "blue", "Other" = "grey")) + 
-  theme(
-    axis.text.x = element_text(angle = 90, hjust = 1),
-    legend.position = "none",
-    plot.title = element_text(hjust = 0.5)
-  )
-
-#ggsave("score_data/Plots/mtor_score_by_strain_hf_age_corrected_data.png", width = 8, height = 6, dpi = 100)
-
-
 ### Score plots by sex ####
 
 # distribution of scores by sex
@@ -277,63 +208,6 @@ ggplot(mtor_score_df_with_metadata, aes(x = Sex, y = mtor_score_matrix, fill = S
   geom_jitter(width = 0.2, size = 1.5, color = "darkgreen", alpha = 0.5) +
   theme_minimal() + 
   labs(title = "Distribution of mTOR Scores by Sex", x = "Sex", y = "mTOR Score")
-
-
-#### Difference between young and old ####
-
-## Scores by diet for young and old ##
-
-# Define the age threshold
-age_threshold <- 450
-
-# Add new column based on the age threshold
-mtor_score_df_with_metadata_filtered <- mtor_score_df_with_metadata_filtered %>%
-  mutate(Age_Group = ifelse(Age < age_threshold, "< 450 days", ">= 450 days"))
-
-# Ensure Age_Group is treated as a factor
-mtor_score_df_with_metadata_filtered$Age_Group <- factor(mtor_score_df_with_metadata_filtered$Age_Group, levels = c("< 450 days", ">= 450 days"))
-
-# Plot distribution of mTOR scores by Diet and Age_Group
-ggplot(mtor_score_df_with_metadata_filtered, aes(x = Age_Group, y = mtor_score_matrix, fill = Diet)) + 
-  geom_boxplot(alpha = 0.5, position = position_dodge(width = 0.9), outliers = FALSE) +  # Boxplot for score distribution
-  geom_jitter(size = 1.3, color = "black", alpha = 0.5, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.9)) +  # Jittered points for individual scores
-  theme_minimal() + 
-  labs(title = "mTOR Scores by Age Group and Diet", x = "Age Group", y = "mTOR Score") +
-  scale_fill_manual(values = c("blue", "darkgreen"), name = "Diet")  # Adjust colors for the fill
-
-
-
-## Differences between young and old within the strains with more than 3 samples ##
-
-# Calculate the mean score for each Age_Group, Strain, and Diet
-mtor_diff_data <- mtor_score_df_with_metadata_filtered %>%
-  group_by(Strain, Age_Group, Diet) %>%
-  summarise(mean_mtor_score = mean(mtor_score_matrix, na.rm = TRUE), .groups = "drop")
-
-# Calculate difference in score between Age Groups within each Strain and Diet
-mtor_diff_data_wide <- mtor_diff_data %>%
-  pivot_wider(names_from = Age_Group, values_from = mean_mtor_score) %>%
-  mutate(Difference = `>= 450 days` - `< 450 days`)  # Calculate difference between old and young
-
-# Reshape to get differences for both diets (CD and HF)
-diet_diff <- mtor_diff_data_wide %>%
-  filter(Diet %in% c("CD", "HF")) %>%
-  dplyr::select(Strain, Diet, Difference) %>%
-  pivot_wider(names_from = Diet, values_from = Difference)
-
-# Plot differences between Age Groups for each Strain
-ggplot(diet_diff, aes(x = CD, y = HF, label = Strain)) +
-  geom_point(size = 3, color = "darkblue") +  # Points for each strain
-  geom_text(vjust = 1.5, hjust = 1.5) +  # Add strain labels next to the points
-  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "black") +  # Diagonal line (y = x)
-  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +  # Horizontal line at y = 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "black") +  # Vertical line at x = 0
-  theme_minimal() +
-  labs(title = "Difference in mTOR Scores Between Age Groups by Strain",
-       subtitle = "X-axis: Difference in Low-Fat Diet (CD), Y-axis: Difference in High-Fat Diet (HFD)",
-       x = "Difference in mTOR Score (CD)",
-       y = "Difference in mTOR Score (HF)")
-#ggsave("score_data/Plots/mtor_score_difference_by_strain_uncorrected_data.png", width = 8, height = 6, dpi = 100)
 
 
 
@@ -380,35 +254,6 @@ ggplot(diet_diff, aes(x = CD, y = HF, label = Strain)) +
        x = "Difference in mTOR Score (CD)",
        y = "Difference in mTOR Score (HF)")
 #ggsave("score_data/Plots/mtor_score_difference_by_strain_weighted_uncorrected_data.png", width = 8, height = 6, dpi = 100)
-
-
-#### Difference between the 4 age groups ####
-
-# Define the age thresholds
-age_threshold1 <- 300
-age_threshold2 <- 450
-age_threshold3 <- 650
-
-# Add new column based on the age thresholds
-mtor_score_df_with_metadata_filtered <- mtor_score_df_with_metadata_filtered %>%
-  mutate(Age_Group = case_when(
-    Age < age_threshold1 ~ "< 300 days",
-    Age >= age_threshold1 & Age < age_threshold2 ~ "300-450 days",
-    Age >= age_threshold2 & Age < age_threshold3 ~ "450-650 days",
-    Age >= age_threshold3 ~ ">= 650 days"
-  ))
-
-# Ensure Age_Group is treated as a factor
-mtor_score_df_with_metadata_filtered$Age_Group <- factor(mtor_score_df_with_metadata_filtered$Age_Group, levels = c("< 300 days", "300-450 days", "450-650 days", ">= 650 days"))
-
-# Plot distribution of scores by Diet and Age_Group and add a line for the trends
-ggplot(mtor_score_df_with_metadata_filtered, aes(x = Age_Group, y = mtor_score_matrix, fill = Diet)) + 
-  geom_boxplot(alpha = 0.5, position = position_dodge(width = 0.9), outliers = FALSE) +  # Boxplot for score distribution
-  geom_jitter(size = 1.3, color = "black", alpha = 0.5, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.9)) +  # Jittered points for individual scores
-  theme_minimal() + 
-  labs(title = "mTOR Scores by 4 Age Groups and Diet", x = "Age Groups", y = "mTOR Score") +
-  scale_fill_manual(values = c("blue", "darkgreen"), name = "Diet")  # Adjust colors for the fill
-#ggsave("score_data/Plots/mtor_score_by_age_group_and_diet_uncorrected_data.png", width = 8, height = 6, dpi = 100)
 
 
 
@@ -520,65 +365,6 @@ ggplot(erk_score_df_with_metadata_filtered, aes(x = reorder(Strain, -erk_score_m
 #ggsave("score_data/Plots/erk_score_by_strain_uncorrected_data.png", width = 8, height = 6, dpi = 100)
 
 
-### Score plots across strains for each diet separately - only necessary for age corrected data (for QTL) ####
-
-# Filter strains that have more than 3 samples and that are on CD diet
-erk_score_df_with_metadata_filtered_cd <- erk_score_df_with_metadata %>%
-  group_by(Strain) %>%
-  filter(n() > 3 & Diet == "CD") %>%
-  ungroup()  # Ungroup to avoid issues with ggplot
-
-# Convert Strain to character to avoid issues with colors
-erk_score_df_with_metadata_filtered_cd$Strain <- as.character(erk_score_df_with_metadata_filtered_cd$Strain)
-
-# Color all strains grey and the parents in different colors
-erk_score_df_with_metadata_filtered_cd <- erk_score_df_with_metadata_filtered_cd %>%
-  mutate(Color = ifelse(Strain %in% c("C57BL6J", "DBA2J"), Strain, "Other"))
-
-# distribution of scores across different strains ordered based on median Score for CD diet
-ggplot(erk_score_df_with_metadata_filtered_cd, aes(x = reorder(Strain, -erk_score_matrix, FUN = median), y = erk_score_matrix, fill = Color)) + 
-  geom_boxplot(alpha = 0.6) + 
-  geom_jitter(width = 0.2, size = 1.5, color = "darkgreen", alpha = 0.5) +
-  theme_minimal() + 
-  ylim(-0.35,0.35) +
-  labs(title = "CD", x = "Strain", y = "ERK Score") + 
-  scale_fill_manual(values = c("C57BL6J" = "red", "DBA2J" = "blue", "Other" = "grey")) + 
-  theme(
-    axis.text.x = element_text(angle = 90, hjust = 1),
-    legend.position = "none",
-    plot.title = element_text(hjust = 0.5)
-  )
-#ggsave("score_data/Plots/erk_score_by_strain_cd_age_corrected_data.png", width = 8, height = 6, dpi = 100)
-
-# Filter strains that have more than 3 samples and that are on HF diet
-erk_score_df_with_metadata_filtered_hf <- erk_score_df_with_metadata %>%
-  group_by(Strain) %>%
-  filter(n() > 3 & Diet == "HF") %>%
-  ungroup()  # Ungroup to avoid issues with ggplot
-
-# Convert Strain to character to avoid issues with colors
-erk_score_df_with_metadata_filtered_hf$Strain <- as.character(erk_score_df_with_metadata_filtered_hf$Strain)
-
-# Color all strains grey and the parents in different colors
-erk_score_df_with_metadata_filtered_hf <- erk_score_df_with_metadata_filtered_hf %>%
-  mutate(Color = ifelse(Strain %in% c("C57BL6J", "DBA2J"), Strain, "Other"))
-
-# distribution of scores across different strains ordered based on median Score for HF diet and remove legend
-ggplot(erk_score_df_with_metadata_filtered_hf, aes(x = reorder(Strain, -erk_score_matrix, FUN = median), y = erk_score_matrix, fill = Color)) + 
-  geom_boxplot(alpha = 0.6) + 
-  geom_jitter(width = 0.2, size = 1.5, color = "darkgreen", alpha = 0.5) +
-  theme_minimal() + 
-  ylim(-0.35,0.35) +
-  labs(title = "HF", x = "Strain", y = "ERK Score") + 
-  scale_fill_manual(values = c("C57BL6J" = "red", "DBA2J" = "blue", "Other" = "grey")) + 
-  theme(
-    axis.text.x = element_text(angle = 90, hjust = 1),
-    legend.position = "none",
-    plot.title = element_text(hjust = 0.5)
-  )
-#ggsave("score_data/Plots/erk_score_by_strain_hf_age_corrected_data.png", width = 8, height = 6, dpi = 100)
-
-
 ### Score plots by sex ####
 
 # distribution of scores by sex
@@ -587,64 +373,6 @@ ggplot(erk_score_df_with_metadata, aes(x = Sex, y = erk_score_matrix, fill = Sex
   geom_jitter(width = 0.2, size = 1.5, color = "darkgreen", alpha = 0.5) +
   theme_minimal() + 
   labs(title = "Distribution of ERK Scores by Sex", x = "Sex", y = "ERK Score")
-
-
-
-#### Difference between young and old ####
-
-## Scores by diet for young and old ##
-
-# Define the age threshold
-age_threshold <- 450
-
-# Add new column based on the age threshold
-erk_score_df_with_metadata_filtered <- erk_score_df_with_metadata_filtered %>%
-  mutate(Age_Group = ifelse(Age < age_threshold, "< 450 days", ">= 450 days"))
-
-# Ensure Age_Group is treated as a factor
-erk_score_df_with_metadata_filtered$Age_Group <- factor(erk_score_df_with_metadata_filtered$Age_Group, levels = c("< 450 days", ">= 450 days"))
-
-# Plot distribution of scores by Diet and Age_Group
-ggplot(erk_score_df_with_metadata_filtered, aes(x = Age_Group, y = erk_score_matrix, fill = Diet)) + 
-  geom_boxplot(alpha = 0.5, position = position_dodge(width = 0.9), outliers = FALSE) +  # Boxplot for score distribution
-  geom_jitter(size = 1.3, color = "black", alpha = 0.5, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.9)) +  # Jittered points for individual scores
-  theme_minimal() + 
-  labs(title = "ERK Scores by Age Group and Diet", x = "Age Group", y = "ERK Score") +
-  scale_fill_manual(values = c("blue", "darkgreen"), name = "Diet")  # Adjust colors for the fill
-
-
-
-## Differences between young and old within the strains with more than 3 samples ##
-
-# Calculate the mean score for each Age_Group, Strain, and Diet
-erk_diff_data <- erk_score_df_with_metadata_filtered %>%
-  group_by(Strain, Age_Group, Diet) %>%
-  summarise(mean_erk_score = mean(erk_score_matrix, na.rm = TRUE), .groups = "drop")
-
-# Calculate difference in score between Age Groups within each Strain and Diet
-erk_diff_data_wide <- erk_diff_data %>%
-  pivot_wider(names_from = Age_Group, values_from = mean_erk_score) %>%
-  mutate(Difference = `>= 450 days` - `< 450 days`)  # Calculate difference between old and young
-
-# Reshape to get differences for both diets (CD and HF)
-diet_diff <- erk_diff_data_wide %>%
-  filter(Diet %in% c("CD", "HF")) %>%
-  dplyr::select(Strain, Diet, Difference) %>%
-  pivot_wider(names_from = Diet, values_from = Difference)
-
-# Plot differences between Age Groups for each Strain
-ggplot(diet_diff, aes(x = CD, y = HF, label = Strain)) +
-  geom_point(size = 3, color = "darkblue") +  # Points for each strain
-  geom_text(vjust = 1.5, hjust = 1.5) +  # Add strain labels next to the points
-  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "black") +  # Diagonal line (y = x)
-  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +  # Horizontal line at y = 0
-  geom_vline(xintercept = 0, linetype = "dashed", color = "black") +  # Vertical line at x = 0
-  theme_minimal() +
-  labs(title = "Difference in ERK Scores Between Younger and Older Mice by Strain",
-       subtitle = "X-axis: Difference in Low-Fat Diet (CD), Y-axis: Difference in High-Fat Diet (HFD)",
-       x = "Difference in ERK Score (CD)",
-       y = "Difference in ERK Score (HF)")
-#ggsave("score_data/Plots/erk_score_difference_by_strain_uncorrected_data.png", width = 8, height = 6, dpi = 100)
 
 
 
@@ -691,132 +419,3 @@ ggplot(diet_diff, aes(x = CD, y = HF, label = Strain)) +
        x = "Difference in ERK Score (CD)",
        y = "Difference in ERK Score (HF)")
 #ggsave("score_data/Plots/erk_score_difference_by_strain_weighted_uncorrected_data.png", width = 8, height = 6, dpi = 100)
-
-
-#### Difference between the 4 age groups #####
-
-# Define the age thresholds
-age_threshold1 <- 300
-age_threshold2 <- 450
-age_threshold3 <- 650
-
-# Add new column based on the age thresholds
-erk_score_df_with_metadata_filtered <- erk_score_df_with_metadata_filtered %>%
-  mutate(Age_Group = case_when(
-    Age < age_threshold1 ~ "< 300 days",
-    Age >= age_threshold1 & Age < age_threshold2 ~ "300-450 days",
-    Age >= age_threshold2 & Age < age_threshold3 ~ "450-650 days",
-    Age >= age_threshold3 ~ ">= 650 days"
-  ))
-
-# Ensure Age_Group is treated as a factor
-erk_score_df_with_metadata_filtered$Age_Group <- factor(erk_score_df_with_metadata_filtered$Age_Group, levels = c("< 300 days", "300-450 days", "450-650 days", ">= 650 days"))
-
-# Plot distribution of scores by Diet and Age_Group and add a line for the trends
-ggplot(erk_score_df_with_metadata_filtered, aes(x = Age_Group, y = erk_score_matrix, fill = Diet)) + 
-  geom_boxplot(alpha = 0.5, position = position_dodge(width = 0.9), outliers = FALSE) +  # Boxplot for score distribution
-  geom_jitter(size = 1.3, color = "black", alpha = 0.5, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.9)) +  # Jittered points for individual scores
-  theme_minimal() + 
-  labs(title = "ERK Scores by 4 Age Groups and Diets", x = "Age Groups", y = "ERK Score") +
-  scale_fill_manual(values = c("blue", "darkgreen"), name = "Diet")  # Adjust colors for the fill
-#ggsave("score_data/Plots/erk_score_by_age_group_and_diet_uncorrected_data.png", width = 8, height = 6, dpi = 100)
-
-
-
-
-#### Scores vs Lifespan ####
-
-# Calculate median score for each strain with at least 2 samples
-mtor_median_scores <- mtor_score_df_with_metadata %>%
-  group_by(Strain) %>%
-  filter(n() >= 3) %>%
-  summarise(median_score = median(mtor_score_matrix, na.rm = TRUE), .groups = "drop")
-erk_median_scores <- erk_score_df_with_metadata %>%
-  group_by(Strain) %>%
-  filter(n() >= 3) %>%
-  summarise(median_score = median(erk_score_matrix, na.rm = TRUE), .groups = "drop")
-
-# Calculate mean lifespan for each strain in survive
-mean_lifespan <- survive %>%
-  group_by(StrainNameCurrent) %>%
-  summarise(mean_lifespan = mean(AgeAtDeath, na.rm = TRUE), .groups = "drop")
-
-# Merge the median scores and median lifespan data
-mtor_score_lifespan_data <- merge(mtor_median_scores, mean_lifespan, by.x = "Strain", by.y = "StrainNameCurrent")
-erk_score_lifespan_data <- merge(erk_median_scores, mean_lifespan, by.x = "Strain", by.y = "StrainNameCurrent")
-
-# Plot mean lifespan vs median score with strain labels
-ggplot(mtor_score_lifespan_data, aes(x = mean_lifespan, y = median_score, label = Strain)) +
-  geom_point(size = 3, color = "darkblue") +  # Points for each strain
-  #geom_text(vjust = 1.7, hjust = 0.5, size.unit = "mm") +  # Add strain labels next to the points and make fint size small
-  geom_smooth(method = "lm", se = FALSE) +  # Add linear regression line
-  theme_minimal() +
-  labs(title = "Mean Lifespan vs Median mTOR Score by Strain",
-       x = "Mean Lifespan (Days)",
-       y = "Median mTOR Score")
-ggplot(erk_score_lifespan_data, aes(x = mean_lifespan, y = median_score, label = Strain)) +
-  geom_point(size = 3, color = "darkblue") +  # Points for each strain
-  #geom_text(vjust = 1.7, hjust = 0.5, size.unit = "mm") +  # Add strain labels next to the points and make fint size small
-  geom_smooth(method = "lm", se = FALSE) +  # Add linear regression line
-  theme_minimal() +
-  labs(title = "Mean Lifespan vs Median ERK Score by Strain",
-       x = "Mean Lifespan (Days)",
-       y = "Median ERK Score")
-
-# Calculate Correlation between Lifespan and Scores
-correlation_mtor <- cor.test(mtor_score_lifespan_data$mean_lifespan, mtor_score_lifespan_data$median_score)
-correlation_erk <- cor.test(erk_score_lifespan_data$mean_lifespan, erk_score_lifespan_data$median_score)
-
-
-
-
-
-#### Scores vs Lifespan per Diet ####
-
-# Calculate median score for each strain with at least 2 samples and diet
-mtor_median_scores_diet <- mtor_score_df_with_metadata %>%
-  group_by(Strain, Diet) %>%
-  filter(n() >= 3) %>%
-  summarise(median_score = median(mtor_score_matrix, na.rm = TRUE), .groups = "drop")
-erk_median_scores_diet <- erk_score_df_with_metadata %>%
-  group_by(Strain, Diet) %>%
-  filter(n() >= 3) %>%
-  summarise(median_score = median(erk_score_matrix, na.rm = TRUE), .groups = "drop")
-
-# Merge the median scores and mean lifespan data
-mtor_score_lifespan_data_diet <- merge(mtor_median_scores_diet, mean_lifespan, by.x = "Strain", by.y = "StrainNameCurrent")
-erk_score_lifespan_data_diet <- merge(erk_median_scores_diet, mean_lifespan, by.x = "Strain", by.y = "StrainNameCurrent")
-
-# Plot mean lifespan vs median score with strain labels
-ggplot(mtor_score_lifespan_data_diet, aes(x = mean_lifespan, y = median_score, label = Strain)) +
-  geom_point(size = 3, color = "darkblue") +  # Points for each strain
-  #geom_text(vjust = 1.7, hjust = 0.5, size.unit = "mm") +  # Add strain labels next to the points and make fint size small
-  geom_smooth(method = "lm", se = FALSE) +  # Add linear regression line
-  theme_minimal() +
-  labs(title = "Mean Lifespan vs Median mTOR Score by Strain and Diet",
-       x = "Mean Lifespan (Days)",
-       y = "Median mTOR Score") +
-  facet_wrap(~ Diet)  # Separate plots by Diet
-ggplot(erk_score_lifespan_data_diet, aes(x = mean_lifespan, y = median_score, label = Strain)) +
-  geom_point(size = 3, color = "darkblue") +  # Points for each strain
-  #geom_text(vjust = 1.7, hjust = 0.5, size.unit = "mm") +  # Add strain labels next to the points and make fint size small
-  geom_smooth(method = "lm", se = FALSE) +  # Add linear regression line
-  theme_minimal() +
-  labs(title = "Mean Lifespan vs Median ERK Score by Strain and Diet",
-       x = "Mean Lifespan (Days)",
-       y = "Median ERK Score") +
-  facet_wrap(~ Diet)  # Separate plots by Diet
-
-# Calculate Correlation between Lifespan and Scores per Diet separately
-correlation_mtor_CD_Diet <- cor.test(mtor_score_lifespan_data_diet$mean_lifespan[mtor_score_lifespan_data_diet$Diet == "CD"], mtor_score_lifespan_data_diet$median_score[mtor_score_lifespan_data_diet$Diet == "CD"])
-correlation_mtor_HF_Diet <- cor.test(mtor_score_lifespan_data_diet$mean_lifespan[mtor_score_lifespan_data_diet$Diet == "HF"], mtor_score_lifespan_data_diet$median_score[mtor_score_lifespan_data_diet$Diet == "HF"])
-correlation_erk_CD_Diet <- cor.test(erk_score_lifespan_data_diet$mean_lifespan[erk_score_lifespan_data_diet$Diet == "CD"], erk_score_lifespan_data_diet$median_score[erk_score_lifespan_data_diet$Diet == "CD"])
-correlation_erk_HF_Diet <- cor.test(erk_score_lifespan_data_diet$mean_lifespan[erk_score_lifespan_data_diet$Diet == "HF"], erk_score_lifespan_data_diet$median_score[erk_score_lifespan_data_diet$Diet == "HF"])
-
-# Print p-values of the correlation results for the different Diets
-cat("Correlation between mean Lifespan and median mTOR Score for CD Diet:", correlation_mtor_CD_Diet$p.value, "\n")
-cat("Correlation between mean Lifespan and median mTOR Score for HF Diet:", correlation_mtor_HF_Diet$p.value, "\n")
-cat("Correlation between mean Lifespan and median ERK Score for CD Diet:", correlation_erk_CD_Diet$p.value, "\n")
-cat("Correlation between mean Lifespan and median ERK Score for HF Diet:", correlation_erk_HF_Diet$p.value, "\n")
-
-
